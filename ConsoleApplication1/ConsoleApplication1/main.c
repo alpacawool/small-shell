@@ -144,6 +144,23 @@ char * getString() {
 	return stringVal;
 }
 
+
+/********************************************************************
+* Function: processCommand
+* Receives:
+* Returns:
+* Description:
+*********************************************************************/
+
+void processCommand(char * userCommand) {
+	// Identify prefix of command
+
+	// cd (change directory)
+	if (strncmp("cd", userCommand, strlen("cd")) == 0) {
+		//printf("Entered the cd command.\n");
+	}
+}
+
 /********************************************************************
 * Function: requestInputLoop
 * Receives:
@@ -159,6 +176,9 @@ void requestInputLoop() {
 	// While user has not entered exit command
 	while (strstr("exit", userString) == NULL) {
 
+		// Process command
+		processCommand(userString);
+
 		// Request input again
 		free(userString);
 		printColon();
@@ -168,6 +188,7 @@ void requestInputLoop() {
 	// Exit out of shell
 	free(userString);
 	// printf("You have entered exit. Exiting...\n");
+
 }
 
 /********************************************************************
