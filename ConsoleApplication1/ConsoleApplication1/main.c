@@ -163,42 +163,53 @@ char * getString() {
 * Citations:
 * Exploration: Directories
 * https://repl.it/@cs344/34directoryc
-* 
-* Absolute VS. Relative Paths
-* https://linuxize.com/post/linux-cd-command/
+* Exploration: Environment
+* https://repl.it/@cs344/45envvarsc
 *********************************************************************/
 void changeDirectory(char * userCommand) {
 
 	// Get current working directory
 	char * currentPath = malloc(sizeof(char) * MAX_CHAR);
 	getcwd(currentPath, sizeof(char) * MAX_CHAR);
-	printf("The current working directory is %s\n", currentPath);
+	//printf("The current working directory is %s\n", currentPath);
 
 	// Open current directory
 	DIR* currentDirectory = opendir(currentPath);
-	struct dirent *aDir;
 
-	// Iterate through entries
+	//struct dirent *aDir;
+	/* Iterate through entries
 	while ((aDir = readdir(currentDirectory)) != NULL) {
 		printf("%s  %lu\n", aDir->d_name, aDir->d_ino);
 	}
+	*/
 
 	// Change directory without any argument
 	if (strncmp("cd", userCommand, strlen(userCommand)) == 0) {
 		//printf("Entered cd without arguments.\n");
+		// Go to HOME directory
+		//printf("Home Directory: %s\n", getenv("HOME"));
+		chdir(getenv("HOME"));
+
 	}
-	// change directory with argument
+	// Change directory with argument
 	else {
 		char * fileDirectory = malloc(sizeof(char) * MAX_CHAR);
 		
-		// Get folder name
+		// Get directory name
 		strncpy(fileDirectory, userCommand + 3, sizeof(char) * MAX_CHAR);
 
-		printf("fileDirectory: %s\n", fileDirectory);
+		//printf("fileDirectory: %s\n", fileDirectory);
+		// Go to specified directory
+		chdir(fileDirectory);
 
 		free(fileDirectory);
 
 	}
+
+	/* Test print
+	getcwd(currentPath, sizeof(char) * MAX_CHAR);
+	printf("Changed directory to %s\n", currentPath);
+	*/
 
 	// Close Directory
 	closedir(currentDirectory);
