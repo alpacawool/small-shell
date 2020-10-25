@@ -30,7 +30,7 @@
 struct command {
 	char * name;
 	char * argumentString;
-	char ** arguments[MAX_ARG];
+	char * arguments[MAX_ARG];
 	char * inputFile;
 	char * outputFile;
 	char * jobType;
@@ -542,6 +542,34 @@ struct command * createCommand(char * userCommand) {
 	return currentCommand;
 }
 
+
+
+/********************************************************************
+* Function: createArgArray
+* Receives:
+* Returns:
+* Description:
+* Citations:
+* https://www.geeksforgeeks.org/strtok-strtok_r-functions-c-examples/
+*********************************************************************/
+void createArgArray(struct command * currentCommand) {
+	char *savePtr = currentCommand->argumentString;;
+	char *token;
+	int i = 0;
+
+	printf("=======ARRAY======\n");
+	while ((token = strtok_r(savePtr, " ", &savePtr))) {
+		printf("%s\n", token);
+		currentCommand->arguments[i] = 
+			malloc((strlen(token) + 1) * sizeof(char));
+		strcpy(currentCommand->arguments[i], token);
+		i++;
+	}
+	currentCommand->arguments[i] = NULL;
+
+	printf("====================\n");
+}
+
 /********************************************************************
 * TEST PRINT COMMAND OBJECT
 *********************************************************************/
@@ -549,9 +577,16 @@ void printCommand(struct command * currentCommand) {
 
 	printf("--------------------------------------\n");
 	printf("Name: [%s]\n", currentCommand->name);
-	
+
 	if (currentCommand->argumentString != NULL) {
 		printf("Arguments: [%s]\n", currentCommand->argumentString);
+		int i = 0;
+		printf("Arguments Array: ");
+		while (currentCommand->arguments[i] != NULL) {
+			printf("[%s] ", currentCommand->arguments[i]);
+			i++;
+		}
+		printf("\n");
 	}
 	if (currentCommand->inputFile != NULL) {
 		printf("Input File: [%s]\n", currentCommand->inputFile);
@@ -583,6 +618,11 @@ void freeCommand(struct command * currentCommand) {
 	if (currentCommand->argumentString != NULL) {
 		//printf("Freeing argumentString\n");
 		free(currentCommand->argumentString);
+		int i = 0;
+		while (currentCommand->arguments[i] != NULL) {
+			free(currentCommand->arguments[i]);
+			i++;
+		}
 	}
 	if (currentCommand->inputFile != NULL) {
 		//printf("Freeing inputFile\n");
@@ -616,9 +656,17 @@ void processCommand(char * userCommand) {
 		printf("Entered the status command.\n");
 		printStatus();
 	}
+	// Commands that are not built-in
 	else {
+		// Create command structure
 		struct command * currentCommand = createCommand(userCommand);
+		// Create argument array if arguments exist
+		if (currentCommand->argumentString != NULL) {
+			createArgArray(currentCommand);
+		}
+		// Test print
 		printCommand(currentCommand);
+		// Free memory
 		if (currentCommand != NULL) {
 			freeCommand(currentCommand);
 		}
