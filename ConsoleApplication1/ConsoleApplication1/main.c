@@ -176,16 +176,15 @@ void changeDirectory(char * userCommand) {
 	}
 	// Change directory with argument
 	else {
-char * fileDirectory = malloc(sizeof(char) * MAX_CHAR);
+		char * fileDirectory = malloc(sizeof(char) * MAX_CHAR);
 
-// Get directory name
-strncpy(fileDirectory, userCommand + 3, sizeof(char) * MAX_CHAR);
+		// Get directory name
+		strncpy(fileDirectory, userCommand + 3, sizeof(char) * MAX_CHAR);
 
-// Go to specified directory
-chdir(fileDirectory);
+		// Go to specified directory
+		chdir(fileDirectory);
 
-free(fileDirectory);
-
+		free(fileDirectory);
 	}
 
 	// Test print
@@ -265,12 +264,19 @@ struct command * createCommand(char * userCommand) {
 	// Allocate memory
 	struct command *currentCommand = malloc(sizeof(struct command));
 
+	char background[] = "back";
+	char foreground[] = "fore";
 	// Assign Job type
-	currentCommand->jobType = calloc(strlen("xxxx") + 1, sizeof(char));
+	currentCommand->jobType = malloc(strlen(background)+1);
+	if (currentCommand->jobType != NULL) {
+		free(currentCommand->jobType);
+	}
 	if (endContains(userCommand, "&") == 1) {
+		//strcpy(currentCommand->jobType, background);
 		currentCommand->jobType = "back";
 	}
 	else {
+		//strcpy(currentCommand->jobType, foreground);
 		currentCommand->jobType = "fore";
 	}
 
@@ -346,6 +352,7 @@ struct command * createCommand(char * userCommand) {
 			currentCommand->argumentString = NULL;
 			currentCommand->inputFile = NULL;
 			currentCommand->outputFile = NULL;
+
 			return currentCommand;
 		}
 	}
@@ -556,6 +563,41 @@ void printCommand(struct command * currentCommand) {
 
 	printf("--------------------------------------\n");
 }
+
+/********************************************************************
+* Function: freeCommand
+* Receives:
+* Returns:
+* Description:
+*********************************************************************/
+void freeCommand(struct command * currentCommand) {
+
+	if (currentCommand->name != NULL) {
+		free(currentCommand->name);
+	}
+
+	if (currentCommand->jobType != NULL) {
+		free(currentCommand->jobType);
+	}
+
+	if (currentCommand->argumentString != NULL) {
+		//printf("Freeing argumentString\n");
+		free(currentCommand->argumentString);
+	}
+	if (currentCommand->inputFile != NULL) {
+		//printf("Freeing inputFile\n");
+		free(currentCommand->inputFile);
+	}
+	if (currentCommand->outputFile != NULL) {
+		//printf("Freeing outputFile\n");
+		free(currentCommand->outputFile);
+	}
+
+	if (currentCommand != NULL) {
+		free(currentCommand);
+	}
+}
+
 /********************************************************************
 * Function: processCommand
 * Receives:
@@ -577,7 +619,11 @@ void processCommand(char * userCommand) {
 	else {
 		struct command * currentCommand = createCommand(userCommand);
 		printCommand(currentCommand);
+		if (currentCommand != NULL) {
+			freeCommand(currentCommand);
+		}
 	}
+
 }
 
 /********************************************************************
