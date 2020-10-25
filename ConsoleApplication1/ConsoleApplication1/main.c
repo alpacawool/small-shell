@@ -4,7 +4,7 @@
 * OSU Email Address: boothpat@oregonstate.edu
 * Course Number / Section: CS 344-400
 * Due Date: 11/03/2020
-* Last Modified: 10/23/2020
+* Last Modified: 10/24/2020
 * Description: 
 * Citations:
 *
@@ -13,6 +13,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+// Opening / Closing Directories
+#include <dirent.h>
+// getcwd() - Current working directory
+#include <unistd.h>
+
+#define MAX_CHAR 2048
 
 /********************************************************************
 * INSTRUCTIONS
@@ -137,13 +143,68 @@ char * getString() {
 	char *stringVal;
 
 	// Shell must support command lines up to 2048 characters
-	stringVal = malloc(2048);
+	stringVal = malloc(sizeof(char) * MAX_CHAR);
 
-	scanf("%s", stringVal);
+	//scanf("%s", stringVal);
+	fgets(stringVal, MAX_CHAR, stdin);
+
+	// Remove trailing newline
+	// https://stackoverflow.com/questions/2693776
+	stringVal[strcspn(stringVal, "\n")] = 0;
 
 	return stringVal;
 }
 
+/********************************************************************
+* Function: changeDirectory
+* Receives:
+* Returns:
+* Description:
+* Citations:
+* Exploration: Directories
+* https://repl.it/@cs344/34directoryc
+* 
+* Absolute VS. Relative Paths
+* https://linuxize.com/post/linux-cd-command/
+*********************************************************************/
+void changeDirectory(char * userCommand) {
+
+	// Get current working directory
+	char * currentPath = malloc(sizeof(char) * MAX_CHAR);
+	getcwd(currentPath, sizeof(char) * MAX_CHAR);
+	printf("The current working directory is %s\n", currentPath);
+
+	// Open current directory
+	DIR* currentDirectory = opendir(currentPath);
+	struct dirent *aDir;
+
+	// Iterate through entries
+	while ((aDir = readdir(currentDirectory)) != NULL) {
+		printf("%s  %lu\n", aDir->d_name, aDir->d_ino);
+	}
+
+	// Change directory without any argument
+	if (strncmp("cd", userCommand, strlen(userCommand)) == 0) {
+		//printf("Entered cd without arguments.\n");
+	}
+	// change directory with argument
+	else {
+		char * fileDirectory = malloc(sizeof(char) * MAX_CHAR);
+		
+		// Get folder name
+		strncpy(fileDirectory, userCommand + 3, sizeof(char) * MAX_CHAR);
+
+		printf("fileDirectory: %s\n", fileDirectory);
+
+		free(fileDirectory);
+
+	}
+
+	// Close Directory
+	closedir(currentDirectory);
+	// Free memory
+	free(currentPath);
+}
 
 /********************************************************************
 * Function: processCommand
@@ -151,13 +212,13 @@ char * getString() {
 * Returns:
 * Description:
 *********************************************************************/
-
 void processCommand(char * userCommand) {
 	// Identify prefix of command
 
 	// cd (change directory)
 	if (strncmp("cd", userCommand, strlen("cd")) == 0) {
 		//printf("Entered the cd command.\n");
+		changeDirectory(userCommand);
 	}
 }
 
