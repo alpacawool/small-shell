@@ -150,7 +150,10 @@ char * getString() {
 
 	// Remove trailing newline
 	// https://stackoverflow.com/questions/2693776
-	stringVal[strcspn(stringVal, "\n")] = 0;
+	if (strlen(stringVal) > 1) {
+		stringVal[strcspn(stringVal, "\n")] = 0;
+	}
+
 
 	return stringVal;
 }
@@ -206,10 +209,9 @@ void changeDirectory(char * userCommand) {
 
 	}
 
-	/* Test print
+	// Test print
 	getcwd(currentPath, sizeof(char) * MAX_CHAR);
 	printf("Changed directory to %s\n", currentPath);
-	*/
 
 	// Close Directory
 	closedir(currentDirectory);
@@ -244,6 +246,7 @@ void requestInputLoop() {
 	// Request user input into shell
 	printColon();
 	char *userString = getString();
+
 
 	// While user has not entered exit command
 	while (strstr("exit", userString) == NULL) {
