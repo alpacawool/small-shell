@@ -134,6 +134,8 @@ char * getString() {
 	//scanf("%s", stringVal);
 	fgets(stringVal, MAX_CHAR, stdin);
 
+
+
 	// See if string contains $$
 	if (strstr(stringVal, "$$") != NULL) {
 		// Variable expansion of $$ into process ID
@@ -148,6 +150,13 @@ char * getString() {
 	if (strlen(stringVal) > 1) {
 		stringVal[strcspn(stringVal, "\n")] = 0;
 	}
+
+	// Blank input
+	if (stringVal[0] == '\n' && stringVal[1] == '\0') {
+		stringVal[0] = '\0';
+	}
+
+	//printf("String length in getString: %d\n", strlen(stringVal));
 
 	return stringVal;
 }
@@ -217,8 +226,8 @@ void changeDirectory(char * userCommand) {
 * The three built-in shell commands do not count as foreground processes
 * for the purposes of this built-in command - i.e., status should
 * ignore built-in commands.*/
-void printStatus() {
-
+void printStatus(int statusValue) {
+	printf("Exit Status %d\n", statusValue);
 }
 
 /********************************************************************
@@ -673,7 +682,7 @@ if (currentCommand != NULL) {
 	A child process must terminate after running a command (whether the command is successful or it fails).
 
 */
-void executeCommand(struct command * myCommand) {
+int executeCommand(struct command * myCommand) {
 
 	// File redirection must be done before execution
 
@@ -741,9 +750,11 @@ void executeCommand(struct command * myCommand) {
 		spawnPid = waitpid(spawnPid, &childStatus, 0);
 		//printf("Parent(%d): child(%d) terminated. Exiting\n",
 			//getpid(), spawnPid);
-		//exit(0);
+		return WIFEXITED(childStatus);
 		break;
 	}
+
+	return 0;
 }
 
 /********************************************************************
@@ -752,7 +763,7 @@ void executeCommand(struct command * myCommand) {
 * Returns:
 * Description:
 *********************************************************************/
-void processCommand(char * userCommand) {
+int processCommand(char * userCommand, int statusValue) {
 	// Identify prefix of command
 
 	// cd (change directory)
@@ -761,11 +772,14 @@ void processCommand(char * userCommand) {
 		changeDirectory(userCommand);
 	} // Status
 	else if (strncmp("status", userCommand, strlen("status")) == 0) {
-		printf("Entered the status command.\n");
-		printStatus();
+		//printf("Entered the status command.\n");
+		printStatus(statusValue);
 	}
 	else if (strncmp("#", userCommand, strlen("#")) == 0) {
-	 // # commands do not do anything
+		// # Commands do nothing
+	}
+	else if (userCommand[0] == '\0') {
+		// Blank commands do nothing
 	}
 	// Commands that are not built-in
 	else {
@@ -776,7 +790,7 @@ void processCommand(char * userCommand) {
 			createArgArray(currentCommand);
 		}
 		// Execute command
-		executeCommand(currentCommand);
+		statusValue = executeCommand(currentCommand);
 		// Test print
 		//printCommand(currentCommand);
 		// Free memory
@@ -784,6 +798,8 @@ void processCommand(char * userCommand) {
 			freeCommand(currentCommand);
 		}
 	}
+
+	return statusValue;
 
 }
 
@@ -795,17 +811,19 @@ void processCommand(char * userCommand) {
 *********************************************************************/
 void requestInputLoop() {
 
+	int statusValue = 0;
+
 	// Request user input into shell
 	printColon();
 	char *userString = getString();
 
-
 	// While user has not entered exit command
 	while (strncmp("exit", userString, strlen("exit")) != 0) {
 
-		//printf("Entered command: %s\n", userString);
+		//printf("Entered command: %s with length %d.\n", 
+			//userString, strlen(userString));
 		// Process command
-		processCommand(userString);
+		statusValue = processCommand(userString, statusValue);
 
 		// Request input again
 		free(userString);
