@@ -21,6 +21,10 @@
 #include <sys/types.h>
 // Boolean Type
 #include <stdbool.h>
+// for waitpid
+#include <sys/wait.h> 
+// For file manipulation
+#include <fcntl.h>
 
 #define MAX_CHAR 2048
 #define MAX_ARG 512
@@ -252,11 +256,11 @@ struct command * createCommand(char * userCommand) {
 	bool hasArg = true;
 
 	if (strstr(userCommand, " < ") != NULL) {
-		printf("Input detected\n");
+		//printf("Input detected\n");
 		hasInput = true;
 	}
 	if (strstr(userCommand, " > ") != NULL) {
-		printf("Output detected\n");
+		//printf("Output detected\n");
 		hasOutput = true;
 	}
 	
@@ -288,48 +292,48 @@ struct command * createCommand(char * userCommand) {
 		charPtr++;
 	}
 
-	printf("Counted tokens: %d\n", count);
+	//printf("Counted tokens: %d\n", count);
 
 	if (currentCommand->jobType == "fore") {
 		if (count == 0) {
-			printf("There are no arguments.\n");
+			//printf("There are no arguments.\n");
 			hasArg = false;
 		}
 		if (count == 2) {
 			if (hasInput == true) {
-				printf("There are no arguments.\n");
+				//printf("There are no arguments.\n");
 				hasArg = false;
 			}
 			else if (hasOutput == true) {
-				printf("There are no arguments.\n");
+				//printf("There are no arguments.\n");
 				hasArg = false;
 			}
 		}
 		if (count == 4) {
 			if (hasInput == true && hasOutput == true) {
-				printf("There are no arguments.\n");
+				//printf("There are no arguments.\n");
 				hasArg = false;
 			}
 		}
 	}
 	else if (currentCommand->jobType == "back") {
 		if (count == 1) {
-			printf("There are no arguments.\n");
+			//printf("There are no arguments.\n");
 			hasArg = false;
 		}
 		if (count == 3) {
 			if (hasInput == true) {
-				printf("There are no arguments.\n");
+				//printf("There are no arguments.\n");
 				hasArg = false;
 			}
 			else if (hasOutput == true) {
-				printf("There are no arguments.\n");
+				//printf("There are no arguments.\n");
 				hasArg = false;
 			}
 		}
 		if (count == 5) {
 			if (hasInput == true && hasOutput == true) {
-				printf("There are no arguments.\n");
+				//printf("There are no arguments.\n");
 				hasArg = false;
 			}
 		}
@@ -348,8 +352,10 @@ struct command * createCommand(char * userCommand) {
 	if (hasArg == false && hasInput == false) {
 		if (hasOutput == false) {
 			// Set other attributes to NULL
-			printf("One command entered\n");
+			//printf("One command entered\n");
 			currentCommand->argumentString = NULL;
+			currentCommand->arguments[0] = currentCommand->name;
+			currentCommand->arguments[1] = NULL;
 			currentCommand->inputFile = NULL;
 			currentCommand->outputFile = NULL;
 
@@ -365,19 +371,22 @@ struct command * createCommand(char * userCommand) {
 			// Foreground process
 			if (currentCommand->jobType == "fore") {
 				token = strtok_r(NULL, "\0", &savePtr);
-				printf("Second Token (I/O): %s\n", token);
+				//printf("Second Token (I/O): %s\n", token);
 				currentCommand->inputFile = calloc(strlen(token) + 1, sizeof(char));
 				strncpy(currentCommand->inputFile, token+2, strlen(token)-1);
 			}
 			// Background process
 			else if (currentCommand->jobType == "back") {
 				token = strtok_r(NULL, "&", &savePtr);
-				printf("Second Token (I/O): %s\n", token);
+				//printf("Second Token (I/O): %s\n", token);
 				currentCommand->inputFile = calloc(strlen(token) + 1, sizeof(char));
 				strncpy(currentCommand->inputFile, token+2, strlen(token)-3);
 			}
 			
 			currentCommand->argumentString = NULL;
+			currentCommand->arguments[0] = currentCommand->name;
+			currentCommand->arguments[1] = NULL;
+
 			currentCommand->outputFile = NULL;
 			return currentCommand;
 		}
@@ -386,43 +395,48 @@ struct command * createCommand(char * userCommand) {
 			// Foreground process
 			if (currentCommand->jobType == "fore") {
 				token = strtok_r(NULL, "\0", &savePtr);
-				printf("Second Token (I/O): %s\n", token);
+				//printf("Second Token (I/O): %s\n", token);
 				currentCommand->outputFile = calloc(strlen(token) + 1, sizeof(char));
 				strncpy(currentCommand->outputFile, token + 2, strlen(token) - 1);
 			}
 			// Background process
 			else if (currentCommand->jobType == "back") {
 				token = strtok_r(NULL, "&", &savePtr);
-				printf("Second Token (I/O): %s\n", token);
+				//printf("Second Token (I/O): %s\n", token);
 				currentCommand->outputFile = calloc(strlen(token) + 1, sizeof(char));
 				strncpy(currentCommand->outputFile, token + 2, strlen(token) - 3);
 			}
 
 			currentCommand->argumentString = NULL;
+			currentCommand->arguments[0] = currentCommand->name;
+			currentCommand->arguments[1] = NULL;
+
 			currentCommand->inputFile = NULL;
 			return currentCommand;
 		}
 		// Case: Input with Output afterwards
 		token = strtok_r(NULL, ">", &savePtr);
-		printf("Second Token (I/O): %s\n", token);
+		//printf("Second Token (I/O): %s\n", token);
 		currentCommand->inputFile = calloc(strlen(token) + 1, sizeof(char));
 		strncpy(currentCommand->inputFile, token + 2, strlen(token) - 3);
 
 		// Token 4: Output [Optional]
 		if (currentCommand->jobType == "back") {
 			token = strtok_r(NULL, " ", &savePtr);
-			printf("Third Token (I/O): %s\n", token);
+			//printf("Third Token (I/O): %s\n", token);
 			currentCommand->outputFile = calloc(strlen(token) + 1, sizeof(char));
 			strncpy(currentCommand->outputFile, token, strlen(token));
 		}
 		else {
 			token = strtok_r(NULL, "\0", &savePtr);
-			printf("Third Token (I/O): %s\n", token);
+			//printf("Third Token (I/O): %s\n", token);
 			currentCommand->outputFile = calloc(strlen(token) + 1, sizeof(char));
 			strncpy(currentCommand->outputFile, token + 1, strlen(token));
 		}
 
 		currentCommand->argumentString = NULL;
+		currentCommand->arguments[0] = currentCommand->name;
+		currentCommand->arguments[1] = NULL;
 		return currentCommand;
 
 	}
@@ -437,20 +451,19 @@ struct command * createCommand(char * userCommand) {
 		// Background process
 		if (currentCommand->jobType == "back") {
 			token = strtok_r(NULL, "&", &savePtr);
-			printf("Second Token (Arguments): %s\n", token);
+			//printf("Second Token (Arguments): %s\n", token);
 			currentCommand->argumentString = calloc(strlen(token) + 1, sizeof(char));
 			strncpy(currentCommand->argumentString, token, strlen(token)-1);
 		} 
 		// Foreground process
 		else {
 			token = strtok_r(NULL, "\0", &savePtr);
-			printf("Second Token (Arguments): %s\n", token);
+			//printf("Second Token (Arguments): %s\n", token);
 			currentCommand->argumentString = calloc(strlen(token) + 1, sizeof(char));
 			strcpy(currentCommand->argumentString, token);
 		}
 
 		
-
 		currentCommand->inputFile = NULL;
 		currentCommand->outputFile = NULL;
 		return currentCommand;
@@ -459,13 +472,13 @@ struct command * createCommand(char * userCommand) {
 	// Case: Input or Output after Arguments
 	if (hasInput == true) {
 		token = strtok_r(NULL, "<", &savePtr);
-		printf("Second Token (Arguments): %s\n", token);
+		//printf("Second Token (Arguments): %s\n", token);
 		currentCommand->argumentString = calloc(strlen(token) + 1, sizeof(char));
 		strncpy(currentCommand->argumentString, token, strlen(token)-1);
 	}
 	else {
 		token = strtok_r(NULL, ">", &savePtr);
-		printf("Second Token (Arguments): %s\n", token);
+		//printf("Second Token (Arguments): %s\n", token);
 		currentCommand->argumentString = calloc(strlen(token) + 1, sizeof(char));
 		strncpy(currentCommand->argumentString, token, strlen(token)-1);
 	}
@@ -477,14 +490,14 @@ struct command * createCommand(char * userCommand) {
 		// Background process
 		if (currentCommand->jobType == "back") {
 			token = strtok_r(NULL, " ", &savePtr);
-			printf("Third Token (I/O): %s\n", token);
+			//printf("Third Token (I/O): %s\n", token);
 			currentCommand->inputFile = calloc(strlen(token) + 1, sizeof(char));
 			strncpy(currentCommand->inputFile, token, strlen(token));
 		}
 		// Foreground process
 		else {
 			token = strtok_r(NULL, "\0", &savePtr);
-			printf("Third Token (I/O): %s\n", token);
+			//printf("Third Token (I/O): %s\n", token);
 			currentCommand->inputFile = calloc(strlen(token) + 1, sizeof(char));
 			strncpy(currentCommand->inputFile, token+1, strlen(token) - 1);
 		}
@@ -498,14 +511,14 @@ struct command * createCommand(char * userCommand) {
 		// Background process
 		if (currentCommand->jobType == "back") {
 			token = strtok_r(NULL, " ", &savePtr);
-			printf("Third Token (I/O): %s\n", token);
+			//printf("Third Token (I/O): %s\n", token);
 			currentCommand->outputFile = calloc(strlen(token) + 1, sizeof(char));
 			strncpy(currentCommand->outputFile, token, strlen(token));
 		}
 		// Foreground process
 		else {
 			token = strtok_r(NULL, "\0", &savePtr);
-			printf("Third Token (I/O): %s\n", token);
+			//printf("Third Token (I/O): %s\n", token);
 			currentCommand->outputFile = calloc(strlen(token) + 1, sizeof(char));
 			strncpy(currentCommand->outputFile, token + 1, strlen(token) - 1);
 		}
@@ -519,7 +532,7 @@ struct command * createCommand(char * userCommand) {
 
 	// Case: Input with Output afterwards
 	token = strtok_r(NULL, ">", &savePtr);
-	printf("Third Token (I/O): %s\n", token);
+	//printf("Third Token (I/O): %s\n", token);
 	currentCommand->inputFile = calloc(strlen(token) + 1, sizeof(char));
 	strncpy(currentCommand->inputFile, token + 1, strlen(token) - 2);
 
@@ -527,13 +540,13 @@ struct command * createCommand(char * userCommand) {
 
 	if (currentCommand->jobType == "back") {
 		token = strtok_r(NULL, " ", &savePtr);
-		printf("Fourth Token (I/O): %s\n", token);
+		//printf("Fourth Token (I/O): %s\n", token);
 		currentCommand->outputFile = calloc(strlen(token) + 1, sizeof(char));
 		strncpy(currentCommand->outputFile, token, strlen(token));
 	}
 	else {
 		token = strtok_r(NULL, "\0", &savePtr);
-		printf("Fourth Token (I/O): %s\n", token);
+		//printf("Fourth Token (I/O): %s\n", token);
 		currentCommand->outputFile = calloc(strlen(token) + 1, sizeof(char));
 		strncpy(currentCommand->outputFile, token + 1, strlen(token));
 	}
@@ -555,11 +568,12 @@ struct command * createCommand(char * userCommand) {
 void createArgArray(struct command * currentCommand) {
 	char *savePtr = currentCommand->argumentString;;
 	char *token;
-	int i = 0;
+	currentCommand->arguments[0] = currentCommand->name;
+	int i = 1;
 
-	printf("=======ARRAY======\n");
+	//printf("=======ARRAY======\n");
 	while ((token = strtok_r(savePtr, " ", &savePtr))) {
-		printf("%s\n", token);
+		//printf("%s\n", token);
 		currentCommand->arguments[i] = 
 			malloc((strlen(token) + 1) * sizeof(char));
 		strcpy(currentCommand->arguments[i], token);
@@ -567,7 +581,7 @@ void createArgArray(struct command * currentCommand) {
 	}
 	currentCommand->arguments[i] = NULL;
 
-	printf("====================\n");
+	//printf("====================\n");
 }
 
 /********************************************************************
@@ -607,34 +621,128 @@ void printCommand(struct command * currentCommand) {
 *********************************************************************/
 void freeCommand(struct command * currentCommand) {
 
-	if (currentCommand->name != NULL) {
-		free(currentCommand->name);
+if (currentCommand->name != NULL) {
+	free(currentCommand->name);
+}
+
+/*if (currentCommand->jobType != NULL) {
+	free(currentCommand->jobType);
+}
+*/
+if (currentCommand->argumentString != NULL) {
+	//printf("Freeing argumentString\n");
+	free(currentCommand->argumentString);
+	int i = 0;
+	while (currentCommand->arguments[i] != NULL) {
+		free(currentCommand->arguments[i]);
+		i++;
+	}
+}
+if (currentCommand->inputFile != NULL) {
+	//printf("Freeing inputFile\n");
+	free(currentCommand->inputFile);
+}
+if (currentCommand->outputFile != NULL) {
+	//printf("Freeing outputFile\n");
+	free(currentCommand->outputFile);
+}
+
+if (currentCommand != NULL) {
+	free(currentCommand);
+}
+}
+
+/********************************************************************
+* Function: executeCommand
+* Receives:
+* Returns:
+* Description:
+* Citation:
+* Exploration: Process API - Executing a New Program
+* https://repl.it/@cs344/42execvforklsc
+* Exploration: Exploration: Processes and I/O
+* https://repl.it/@cs344/54redirectc
+*********************************************************************/
+/*
+* Your shell will execute any commands other than the 3 built-in command by using fork(), exec() and waitpid()
+
+	Whenever a non-built in command is received, the parent (i.e., smallsh) will fork off a child.
+	The child will use a function from the exec() family of functions to run the command.
+	Your shell should use the PATH variable to look for non-built in commands, and it should allow shell scripts to be executed
+	If a command fails because the shell could not find the command to run, then the shell will print an error message and set the exit status to 1
+	A child process must terminate after running a command (whether the command is successful or it fails).
+
+*/
+void executeCommand(struct command * myCommand) {
+
+	// File redirection must be done before execution
+
+	int inFile;
+	int outFile;
+
+	// Input file command exists
+	if (myCommand->inputFile != NULL) {
+		// Open the file
+		inFile  = 
+			open(myCommand->inputFile, O_RDONLY, 0644);
+
+	}
+	
+	// Output file command exists
+	if (myCommand->outputFile != NULL) {
+		outFile =
+			open(myCommand->outputFile, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+
 	}
 
-	if (currentCommand->jobType != NULL) {
-		free(currentCommand->jobType);
-	}
+	int childStatus;
 
-	if (currentCommand->argumentString != NULL) {
-		//printf("Freeing argumentString\n");
-		free(currentCommand->argumentString);
-		int i = 0;
-		while (currentCommand->arguments[i] != NULL) {
-			free(currentCommand->arguments[i]);
-			i++;
+	// Fork a new process;
+	pid_t spawnPid = fork();
+
+	switch (spawnPid) {
+	case -1:
+		perror("fork()\n");
+		exit(1);
+		break;
+	case 0:
+
+		// In the child process
+		// I/O redirection
+		// Input
+		if (myCommand->inputFile != NULL) {
+			int inResult = dup2(inFile, 0);
+			if (inResult == -1) {
+				perror("dup2");
+				// Set status to 1
+				exit(1);
+			}
 		}
-	}
-	if (currentCommand->inputFile != NULL) {
-		//printf("Freeing inputFile\n");
-		free(currentCommand->inputFile);
-	}
-	if (currentCommand->outputFile != NULL) {
-		//printf("Freeing outputFile\n");
-		free(currentCommand->outputFile);
-	}
+		
+		// Output
+		if (myCommand->outputFile != NULL) {
+			int outResult = dup2(outFile, 1);
+			if (outResult == -1) {
+				perror("dup2");
+				// Set status to 1
+				exit(1);
+			}
+		}
 
-	if (currentCommand != NULL) {
-		free(currentCommand);
+		// Execute
+		execvp(myCommand->name, myCommand->arguments);
+		// Exec only returns if there is error
+		perror("execvp");
+		exit(1);
+		break;
+	default:
+		// In the parent process
+		// Wait for child's termination
+		spawnPid = waitpid(spawnPid, &childStatus, 0);
+		//printf("Parent(%d): child(%d) terminated. Exiting\n",
+			//getpid(), spawnPid);
+		//exit(0);
+		break;
 	}
 }
 
@@ -656,6 +764,9 @@ void processCommand(char * userCommand) {
 		printf("Entered the status command.\n");
 		printStatus();
 	}
+	else if (strncmp("#", userCommand, strlen("#")) == 0) {
+	 // # commands do not do anything
+	}
 	// Commands that are not built-in
 	else {
 		// Create command structure
@@ -664,8 +775,10 @@ void processCommand(char * userCommand) {
 		if (currentCommand->argumentString != NULL) {
 			createArgArray(currentCommand);
 		}
+		// Execute command
+		executeCommand(currentCommand);
 		// Test print
-		printCommand(currentCommand);
+		//printCommand(currentCommand);
 		// Free memory
 		if (currentCommand != NULL) {
 			freeCommand(currentCommand);
@@ -690,12 +803,13 @@ void requestInputLoop() {
 	// While user has not entered exit command
 	while (strncmp("exit", userString, strlen("exit")) != 0) {
 
-		printf("Entered command: %s\n", userString);
+		//printf("Entered command: %s\n", userString);
 		// Process command
 		processCommand(userString);
 
 		// Request input again
 		free(userString);
+		fflush(stdin);
 		printColon();
 		userString = getString();
 	}
