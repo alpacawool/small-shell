@@ -25,6 +25,8 @@
 #include <sys/wait.h> 
 // For file manipulation
 #include <fcntl.h>
+// For signal manipulation
+#include <signal.h>
 
 #define MAX_CHAR 2048
 #define MAX_ARG 512
@@ -177,6 +179,36 @@ char * getString() {
 
 	return stringVal;
 }
+
+
+/********************************************************************
+* Function: installSignalHandlers
+* Receives:
+* Returns:
+* Description:
+* Citation:
+* Exploration: Signal Handling API
+* https://repl.it/@cs344/53singal2c
+*********************************************************************/
+
+void installSignalHandlers() {
+
+	/*********** CTRL - C ***************/
+	// Initialize SIGINT_action struct to be empty
+	struct sigaction sigintAction = { 0 };
+
+	// Fill out the SIGINT_action struct
+	// Register handle_SIGINT as the signal handler
+	sigintAction.sa_handler = SIG_IGN;
+	// Block all catchable signals while signitHandler is running
+	sigfillset(&sigintAction.sa_mask);
+	// No flags set
+	sigintAction.sa_flags = 0;
+
+	// Install our signal handler
+	sigaction(SIGINT, &sigintAction, NULL);
+}
+
 
 /********************************************************************
 * Function: changeDirectory
@@ -807,7 +839,7 @@ void checkBackgroundProcesses(struct backgroundProcessList * myList) {
 }
 
 /********************************************************************
-* Function: executeCommand
+* Function: executeCommand (FOREGROUND)
 * Receives:
 * Returns:
 * Description:
@@ -816,6 +848,8 @@ void checkBackgroundProcesses(struct backgroundProcessList * myList) {
 * https://repl.it/@cs344/42execvforklsc
 * Exploration: Exploration: Processes and I/O
 * https://repl.it/@cs344/54redirectc
+* Exploration: Signal Handling API
+* https://repl.it/@cs344/53siguserc
 *********************************************************************/
 int executeCommand(struct command * myCommand) {
 
@@ -844,6 +878,9 @@ int executeCommand(struct command * myCommand) {
 	// Fork a new process;
 	pid_t spawnPid = fork();
 
+	// Signal Handler
+	struct sigaction sigintAction = { 0 };
+
 	switch (spawnPid) {
 	case -1:
 		perror("fork()\n");
@@ -852,6 +889,24 @@ int executeCommand(struct command * myCommand) {
 	case 0:
 
 		// In the child process
+
+		// Install custom handler
+		// Initialize SIGINT_action struct to be empty
+		// Todo: comment cleanup
+
+		// Fill out the SIGINT_action struct
+		// Register handle_SIGINT as the signal handler
+		sigintAction.sa_handler = SIG_DFL;
+		// Block all catchable signals while signitHandler is running
+		sigfillset(&sigintAction.sa_mask);
+		// No flags set
+		sigintAction.sa_flags = 0;
+
+		// Install our signal handler
+		sigaction(SIGINT, &sigintAction, NULL);
+
+		/******************/
+
 		// I/O redirection
 		// Input
 		if (myCommand->inputFile != NULL) {
@@ -890,6 +945,9 @@ int executeCommand(struct command * myCommand) {
 
 	if (WIFEXITED(childStatus)) {
 		return WEXITSTATUS(childStatus);
+	}
+	else if (WIFSIGNALED(childStatus)) {
+		printf("terminated by signal %d\n", WTERMSIG(childStatus));
 	}
 	return 0;
 }
@@ -1048,6 +1106,8 @@ int processCommand(char * userCommand,
 
 }
 
+
+
 /********************************************************************
 * Function: requestInputLoop
 * Receives:
@@ -1057,6 +1117,9 @@ int processCommand(char * userCommand,
 void requestInputLoop() {
 
 	int statusValue = 0;
+
+	// Install signal handlers
+	installSignalHandlers();
 
 	// Request user input into shell
 	printColon();
