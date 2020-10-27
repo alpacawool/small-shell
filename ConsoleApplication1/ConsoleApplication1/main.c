@@ -684,7 +684,7 @@ void createArgArray(struct command * currentCommand) {
 		strcpy(currentCommand->arguments[i], token);
 		i++;
 	}
-	currentCommand->arguments[i] = NULL;
+	currentCommand->arguments[i] = 0;
 
 	//printf("====================\n");
 }
@@ -1038,8 +1038,8 @@ int processCommand(char * userCommand,
 		}
 		// Test print
 		//printCommand(currentCommand);
-		// Free memory
-		freeCommand(currentCommand);
+		// TO DO: Free memory
+		//freeCommand(currentCommand);
 	}
 	// Check for completed processes
 	checkBackgroundProcesses(userList);
