@@ -1164,6 +1164,35 @@ int processCommand(char * userCommand,
 
 }
 
+/********************************************************************
+* Function: killRunningChildren
+* Receives:
+* Returns:
+* Description:
+*********************************************************************/
+void killRunningChildren(struct backgroundProcessList * myList) {
+	if (myList->next != NULL) {
+		struct backgroundProcessList * currentProcess = myList->next;
+		int statusValue = 0;
+		char * commandName = malloc(1024);
+		char * commandNumber = malloc(1024);
+		sprintf(commandNumber, "%d", currentProcess->processID);
+		strcpy(commandName, "kill -9 ");
+		strcat(commandName, commandNumber);
+		//printf("%s\n", commandName);
+		while (currentProcess  != NULL) {
+			statusValue = processCommand(commandName, statusValue, myList);
+			currentProcess = currentProcess->next;
+			if (currentProcess != NULL) {
+				sprintf(commandNumber, "%d", currentProcess->processID);
+				strcpy(commandName, "kill -9 ");
+				strcat(commandName, commandNumber);
+			}
+		}
+		free(commandName);
+		free(commandNumber);
+	}
+}
 
 
 /********************************************************************
@@ -1205,7 +1234,9 @@ void requestInputLoop() {
 	}
 
 	// Exit out of shell
-	// Kill running children
+	// Kill running children if any exist
+	killRunningChildren(childList);
+	// Free memory
 	removeList(childList);
 	free(userString);
 	// printf("You have entered exit. Exiting...\n");
