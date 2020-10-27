@@ -40,6 +40,12 @@ struct command {
 	char * jobType;
 };
 
+// Background process linked list 
+struct backgroundProcessList {
+	int processID;
+	struct backgroundProcessList * next;
+};
+
 /********************************************************************
 * Function: printColon
 * Receives:
@@ -217,17 +223,8 @@ void changeDirectory(char * userCommand) {
 * Returns:
 * Description:
 *********************************************************************/
-/* INSTRUCTION
-* * status
-* The status command prints out either the exit status or the
-* terminating signal of the last foreground process ran by your shell.
-* If this command is run before any foreground command is run, then it
-* should simply return the exit status 0.
-* The three built-in shell commands do not count as foreground processes
-* for the purposes of this built-in command - i.e., status should
-* ignore built-in commands.*/
 void printStatus(int statusValue) {
-	printf("Exit Status %d\n", statusValue);
+	printf("exit status %d\n", statusValue);
 }
 
 /********************************************************************
@@ -247,6 +244,92 @@ int endContains(char *userString, char *stringEnding) {
 
 	return strncmp(userString + stringLength - endingLength,
 		stringEnding, endingLength) == 0;
+}
+
+/********************************************************************
+* Function: createList
+* Receives:
+* Returns:
+* Description:
+*********************************************************************/
+struct backgroundProcessList * createList() {
+	// Allocate memory
+	struct backgroundProcessList * newList =
+		malloc(sizeof(struct backgroundProcessList));
+
+	// Assign values
+	// First value is parent ID
+	newList->processID = getpid();
+	newList->next = NULL;
+
+	return newList;
+}
+
+/********************************************************************
+* Function: removeList
+* Receives:
+* Returns:
+* Description:
+*********************************************************************/
+void removeList(struct backgroundProcessList * myList) {
+
+	struct backgroundProcessList * currentProcess = myList;
+	struct backgroundProcessList * tempProcess;
+
+	while (currentProcess->next != NULL) {
+		tempProcess = currentProcess;
+		//printf("Freeing memory of process [%d]\n", currentProcess->processID);
+		currentProcess = currentProcess->next;
+		free(tempProcess);
+	}
+	free(currentProcess);
+}
+
+/********************************************************************
+* Function: addProcess
+* Receives:
+* Returns:
+* Description:
+*********************************************************************/
+void addProcess(struct backgroundProcessList * currList, int processID) {
+	struct backgroundProcessList * newProcess =
+		malloc(sizeof(struct backgroundProcessList));
+
+	newProcess->processID = processID;
+	newProcess->next = NULL;
+
+	struct backgroundProcessList * currentProcess = currList;
+
+	while (currentProcess->next != NULL) {
+		currentProcess = currentProcess->next;
+	}
+
+	currentProcess->next = newProcess;
+}
+
+
+/********************************************************************
+* Function: removedProcess
+* Receives:
+* Returns:
+* Description:
+*********************************************************************/
+
+void removeProcess(struct backgroundProcessList * currList, int processID) {
+	struct backgroundProcessList * currentProcess = currList;
+	struct backgroundProcessList * processBefore;
+
+	// Search for process ID
+	while (currentProcess->next != NULL
+		&& currentProcess->processID != processID) {
+		processBefore = currentProcess;
+		currentProcess = currentProcess->next;
+	}
+
+	//printf("Removing process %d\n", processID);
+	// Delete process from list
+	processBefore->next = currentProcess->next;
+	free(currentProcess);
 }
 
 /********************************************************************
@@ -662,6 +745,55 @@ if (currentCommand != NULL) {
 }
 
 /********************************************************************
+* Function: checkBackgroundProcesses
+* Receives:
+* Returns:
+* Description:
+*********************************************************************/
+
+void checkBackgroundProcesses(struct backgroundProcessList * myList) {
+
+	if (myList->next == NULL) {
+		// Do not execute rest of code
+	}
+	else {
+		
+	
+		struct backgroundProcessList * currentProcess = myList;
+		/* Test print of current processes
+		printf("Running processes: ");
+		while (currentProcess != NULL) {
+			printf("[%d] ", currentProcess->processID);
+			currentProcess = currentProcess->next;
+		}
+		printf("\n");
+		//**********************************************/
+
+		int childStatus;
+		// Start at first background process
+		currentProcess = myList->next;
+		// Check if process is finished for each in list
+		while (currentProcess != NULL) {
+			if (waitpid(currentProcess->processID, &childStatus, WNOHANG) > 0) {
+
+				if (WIFEXITED(childStatus)) {
+					//  Print completion message
+					printf("background pid %d is done: ", currentProcess->processID);
+					fflush(stdout);
+					printf("exit status %d\n", WEXITSTATUS(childStatus));
+					fflush(stdout);
+					// Remove process from list
+					removeProcess(myList, currentProcess->processID);
+				}
+			}
+
+			currentProcess = currentProcess->next;
+		}
+	}
+
+}
+
+/********************************************************************
 * Function: executeCommand
 * Receives:
 * Returns:
@@ -672,16 +804,6 @@ if (currentCommand != NULL) {
 * Exploration: Exploration: Processes and I/O
 * https://repl.it/@cs344/54redirectc
 *********************************************************************/
-/*
-* Your shell will execute any commands other than the 3 built-in command by using fork(), exec() and waitpid()
-
-	Whenever a non-built in command is received, the parent (i.e., smallsh) will fork off a child.
-	The child will use a function from the exec() family of functions to run the command.
-	Your shell should use the PATH variable to look for non-built in commands, and it should allow shell scripts to be executed
-	If a command fails because the shell could not find the command to run, then the shell will print an error message and set the exit status to 1
-	A child process must terminate after running a command (whether the command is successful or it fails).
-
-*/
 int executeCommand(struct command * myCommand) {
 
 	// File redirection must be done before execution
@@ -750,7 +872,109 @@ int executeCommand(struct command * myCommand) {
 		spawnPid = waitpid(spawnPid, &childStatus, 0);
 		//printf("Parent(%d): child(%d) terminated. Exiting\n",
 			//getpid(), spawnPid);
-		return WIFEXITED(childStatus);
+		break;
+	}
+
+	if (WIFEXITED(childStatus)) {
+		return WEXITSTATUS(childStatus);
+	}
+	return 0;
+}
+
+
+
+/********************************************************************
+* Function: executeBackCommand
+* Receives:
+* Returns:
+* Description:
+* Citation:
+* Exploration: Process API - Executing a New Program
+* https://repl.it/@cs344/42execvforklsc
+* Exploration: Processes and I/O
+* https://repl.it/@cs344/54redirectc
+* Process API - Monitoring Child Processes
+* https://repl.it/@cs344/42waitpidnohangc
+*********************************************************************/
+int executeBackCommand(struct command * myCommand, 
+	struct backgroundProcessList * myList) {
+
+	int inBackResult;
+	int outBackResult;
+
+	// File redirection must be done before execution
+	int inFile;
+	int outFile;
+
+	// Input file command exists
+	if (myCommand->inputFile != NULL) {
+		// Open the file
+		inFile =
+			open(myCommand->inputFile, O_RDONLY, 0644);
+
+	}
+	// Input file does not exit
+	else {
+		inFile = open("/dev/null", O_RDONLY, 0644);
+	}
+
+	// Output file command exists
+	if (myCommand->outputFile != NULL) {
+		outFile =
+			open(myCommand->outputFile, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+
+	}
+	// Output file does not exist
+	else {
+		outFile = open("/dev/null", O_WRONLY | O_TRUNC | O_CREAT, 0644);
+	}
+
+	int childStatus;
+
+	// Fork a new process;
+	pid_t spawnPid = fork();
+
+	switch (spawnPid) {
+	case -1:
+		perror("fork()\n");
+		exit(1);
+		break;
+	case 0:
+
+		// In the child process
+		// I/O redirection
+		// Input
+		inBackResult = dup2(inFile, 0);
+		if (inBackResult == -1) {
+			perror("dup2");
+			// Set status to 1
+			exit(1);
+		}
+
+		// Output
+		outBackResult = dup2(outFile, 1);
+		if (outBackResult == -1) {
+				perror("dup2");
+				// Set status to 1
+				exit(1);
+		}
+
+		// Execute
+		execvp(myCommand->name, myCommand->arguments);
+		// Exec only returns if there is error
+		perror("execvp");
+		exit(1);
+		break;
+	default:
+		// In the parent process
+		// Print background process ID
+		printf("background pid is %d\n", spawnPid);
+		fflush(stdout);
+		// Add background process to list of processes
+		addProcess(myList, spawnPid);
+		// Return to parent without waiting
+		spawnPid = waitpid(spawnPid, &childStatus, WNOHANG);
+
 		break;
 	}
 
@@ -763,7 +987,8 @@ int executeCommand(struct command * myCommand) {
 * Returns:
 * Description:
 *********************************************************************/
-int processCommand(char * userCommand, int statusValue) {
+int processCommand(char * userCommand, 
+		int statusValue, struct backgroundProcessList * userList) {
 	// Identify prefix of command
 
 	// cd (change directory)
@@ -790,7 +1015,14 @@ int processCommand(char * userCommand, int statusValue) {
 			createArgArray(currentCommand);
 		}
 		// Execute command
-		statusValue = executeCommand(currentCommand);
+		// Foreground command
+		if (currentCommand->jobType == "fore") {
+			statusValue = executeCommand(currentCommand);
+		}
+		// Background command
+		else {
+			statusValue = executeBackCommand(currentCommand, userList);
+		}
 		// Test print
 		//printCommand(currentCommand);
 		// Free memory
@@ -798,6 +1030,9 @@ int processCommand(char * userCommand, int statusValue) {
 			freeCommand(currentCommand);
 		}
 	}
+
+	// Check for completed processes
+	checkBackgroundProcesses(userList);
 
 	return statusValue;
 
@@ -817,22 +1052,26 @@ void requestInputLoop() {
 	printColon();
 	char *userString = getString();
 
+	// Create Background process list
+	struct backgroundProcessList * childList = createList();
+
 	// While user has not entered exit command
 	while (strncmp("exit", userString, strlen("exit")) != 0) {
 
 		//printf("Entered command: %s with length %d.\n", 
 			//userString, strlen(userString));
 		// Process command
-		statusValue = processCommand(userString, statusValue);
+		statusValue = processCommand(userString, statusValue, childList);
 
 		// Request input again
 		free(userString);
-		fflush(stdin);
+		fflush(stdout);
 		printColon();
 		userString = getString();
 	}
 
 	// Exit out of shell
+	removeList(childList);
 	free(userString);
 	// printf("You have entered exit. Exiting...\n");
 
