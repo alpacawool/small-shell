@@ -31,6 +31,8 @@
 #define MAX_CHAR 2048
 #define MAX_ARG 512
 
+bool foregroundOnly = false;
+
 /* Command Data Structure */
 //  command [arg1 arg2 ...][< input_file][> output_file][&]
 struct command {
@@ -180,6 +182,31 @@ char * getString() {
 	return stringVal;
 }
 
+/********************************************************************
+* Function: stpSignalHandler
+* Receives:
+* Returns:
+* Description:
+* Citation:
+* Exploration: Signal Handling API
+* https://repl.it/@cs344/53singal2c
+*********************************************************************/
+
+void stpSignalHandler(int signo) {
+	if (foregroundOnly == false) {
+		char* message = 
+			"\nEntering foreground only mode (& is now ignored)\n";
+		write(STDOUT_FILENO, message, 50);
+		fflush(stdout);
+		foregroundOnly = true;
+	}
+	else if (foregroundOnly == true) {
+		char* message = "\nExiting foreground-only mode\n";
+		write(STDOUT_FILENO, message, 30);
+		fflush(stdout);
+		foregroundOnly = false;
+	}
+}
 
 /********************************************************************
 * Function: installSignalHandlers
@@ -193,20 +220,26 @@ char * getString() {
 
 void installSignalHandlers() {
 
-	/*********** CTRL - C ***************/
+
 	// Initialize SIGINT_action struct to be empty
-	struct sigaction sigintAction = { 0 };
+	struct sigaction sigintAction = { 0 }; // CTRL + C
+	struct sigaction sigstpAction = { 0 }; // CTRL + Z
 
 	// Fill out the SIGINT_action struct
 	// Register handle_SIGINT as the signal handler
 	sigintAction.sa_handler = SIG_IGN;
+	sigstpAction.sa_handler = stpSignalHandler;
+
 	// Block all catchable signals while signitHandler is running
 	sigfillset(&sigintAction.sa_mask);
+	sigfillset(&sigstpAction.sa_mask);
 	// No flags set
 	sigintAction.sa_flags = 0;
+	sigstpAction.sa_flags = 0;
 
 	// Install our signal handler
 	sigaction(SIGINT, &sigintAction, NULL);
+	sigaction(SIGTSTP, &sigstpAction, NULL);
 }
 
 
@@ -320,7 +353,7 @@ void removeList(struct backgroundProcessList * myList) {
 
 	struct backgroundProcessList * currentProcess = myList;
 	struct backgroundProcessList * tempProcess;
-
+	
 	while (currentProcess->next != NULL) {
 		tempProcess = currentProcess;
 		//printf("Freeing memory of process [%d]\n", currentProcess->processID);
@@ -830,6 +863,15 @@ void checkBackgroundProcesses(struct backgroundProcessList * myList) {
 					// Remove process from list
 					removeProcess(myList, currentProcess->processID);
 				}
+				else if (WIFSIGNALED(childStatus)) {
+					//  Print completion message
+					printf("background pid %d is done: ", currentProcess->processID);
+					fflush(stdout);
+					printf("terminated by signal %d\n", WTERMSIG(childStatus));
+					fflush(stdout);
+					// Remove process from list
+					removeProcess(myList, currentProcess->processID);
+				}
 			}
 
 			currentProcess = currentProcess->next;
@@ -879,7 +921,8 @@ int executeCommand(struct command * myCommand) {
 	pid_t spawnPid = fork();
 
 	// Signal Handler
-	struct sigaction sigintAction = { 0 };
+	struct sigaction sigintAction = { 0 },
+		sigstpAction = { 0 };
 
 	switch (spawnPid) {
 	case -1:
@@ -897,13 +940,16 @@ int executeCommand(struct command * myCommand) {
 		// Fill out the SIGINT_action struct
 		// Register handle_SIGINT as the signal handler
 		sigintAction.sa_handler = SIG_DFL;
+		sigstpAction.sa_handler = SIG_IGN;
 		// Block all catchable signals while signitHandler is running
 		sigfillset(&sigintAction.sa_mask);
+
 		// No flags set
 		sigintAction.sa_flags = 0;
-
+		
 		// Install our signal handler
 		sigaction(SIGINT, &sigintAction, NULL);
+		sigaction(SIGTSTP, &sigstpAction, NULL);
 
 		/******************/
 
@@ -1005,6 +1051,9 @@ int executeBackCommand(struct command * myCommand,
 	// Fork a new process;
 	pid_t spawnPid = fork();
 
+	// Signal Handler
+	struct sigaction sigstpAction = { 0 };
+
 	switch (spawnPid) {
 	case -1:
 		perror("fork()\n");
@@ -1012,6 +1061,11 @@ int executeBackCommand(struct command * myCommand,
 		break;
 	case 0:
 
+		// Signal Handler
+		sigstpAction.sa_handler = SIG_IGN;
+		sigfillset(&sigstpAction.sa_mask);
+		sigstpAction.sa_flags = 0;
+		sigaction(SIGTSTP, &sigstpAction, NULL);
 		// In the child process
 		// I/O redirection
 		// Input
@@ -1085,6 +1139,10 @@ int processCommand(char * userCommand,
 		if (currentCommand->argumentString != NULL) {
 			createArgArray(currentCommand);
 		}
+		// Special mode: Foreground Only
+		if (foregroundOnly == true) {
+			currentCommand->jobType = "fore";
+		}
 		// Execute command
 		// Foreground command
 		if (currentCommand->jobType == "fore") {
@@ -1125,7 +1183,7 @@ void requestInputLoop() {
 	printColon();
 	fflush(stdout);
 	char *userString = getString();
-	printf(userString);
+
 
 	// Create Background process list
 	struct backgroundProcessList * childList = createList();
@@ -1143,9 +1201,11 @@ void requestInputLoop() {
 		fflush(stdout);
 		printColon();
 		userString = getString();
+
 	}
 
 	// Exit out of shell
+	// Kill running children
 	removeList(childList);
 	free(userString);
 	// printf("You have entered exit. Exiting...\n");
