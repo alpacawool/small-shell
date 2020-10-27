@@ -54,6 +54,7 @@ struct backgroundProcessList {
 *********************************************************************/
 void printColon() {
 	printf(": ");
+	fflush(stdout);
 }
 
 /********************************************************************
@@ -157,6 +158,16 @@ char * getString() {
 		stringVal[strcspn(stringVal, "\n")] = 0;
 	}
 
+	//printf("Entered string of length %d: [%s]", strlen(stringVal), stringVal);
+
+	// Remove trailing space
+	if (stringVal[strlen(stringVal)-1] == ' ') {
+		printf("There is a trailing space\n");
+		stringVal[strlen(stringVal)-1] = '\0';
+	}
+
+	//printf("Entered string of length %d: [%s]", strlen(stringVal), stringVal);
+
 	// Blank input
 	if (stringVal[0] == '\n' && stringVal[1] == '\0') {
 		stringVal[0] = '\0';
@@ -209,6 +220,7 @@ void changeDirectory(char * userCommand) {
 	// Test print
 	getcwd(currentPath, sizeof(char) * MAX_CHAR);
 	printf("Changed directory to %s\n", currentPath);
+	fflush(stdout);
 	// **************
 
 	// Close Directory
@@ -225,6 +237,7 @@ void changeDirectory(char * userCommand) {
 *********************************************************************/
 void printStatus(int statusValue) {
 	printf("exit status %d\n", statusValue);
+	fflush(stdout);
 }
 
 /********************************************************************
@@ -1026,11 +1039,8 @@ int processCommand(char * userCommand,
 		// Test print
 		//printCommand(currentCommand);
 		// Free memory
-		if (currentCommand != NULL) {
-			freeCommand(currentCommand);
-		}
+		freeCommand(currentCommand);
 	}
-
 	// Check for completed processes
 	checkBackgroundProcesses(userList);
 
@@ -1050,7 +1060,9 @@ void requestInputLoop() {
 
 	// Request user input into shell
 	printColon();
+	fflush(stdout);
 	char *userString = getString();
+	printf(userString);
 
 	// Create Background process list
 	struct backgroundProcessList * childList = createList();
